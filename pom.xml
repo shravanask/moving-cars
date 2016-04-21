@@ -15,6 +15,7 @@
 		<jersey.version>1.8</jersey.version>
 		<jetty.version>9.3.0.M1</jetty.version>
 		<jackson-annotations.version>2.7.3</jackson-annotations.version>
+		<httpclient.version>4.4.1</httpclient.version>
 	</properties>
 
 	<dependencies>
@@ -87,6 +88,11 @@
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-annotations</artifactId>
 			<version>${jackson-annotations.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
 		</dependency>
 	</dependencies>
 	<build>

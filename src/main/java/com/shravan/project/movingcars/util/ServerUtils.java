@@ -1,21 +1,26 @@
 package com.shravan.project.movingcars.util;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.util.HashMap;
 import java.util.logging.Logger;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 /**
- * Helper class on top of the {@link ObjectMapper}, to serialize, deserialize
- * and convert beans
+ * Helper class providing common util methods for serialization,
+ * deserialization, url query fetch etc
  * 
  * @author shravanshetty
  */
-public class JSONFormatter {
+public class ServerUtils {
 
     private static final ObjectMapper om = new ObjectMapper();
-    private static final Logger log = Logger.getLogger(JSONFormatter.class.getSimpleName());
+    private static final Logger log = Logger.getLogger(ServerUtils.class.getSimpleName());
 
     /**
      * Serializes the given object instance
@@ -123,5 +128,21 @@ public class JSONFormatter {
                 return null;
             }
         }
+    }
+    
+    /**
+     * Returns all the query parameters in the url given.
+     * @return
+     * @throws Exception
+     */
+    public static HashMap<String, String> getAllQuerParameters(String url) throws Exception {
+
+        url = url.replace(" ", URLEncoder.encode(" ", "UTF-8"));
+        URIBuilder uriBuilder = new URIBuilder(new URI(url));
+        HashMap<String, String> result = new HashMap<String, String>();
+        for (NameValuePair nameValue : uriBuilder.getQueryParams()) {
+            result.put(nameValue.getName(), nameValue.getValue());
+        }
+        return result;
     }
 }

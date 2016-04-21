@@ -1,4 +1,4 @@
-package com.shravan.project.movingcars.resource;
+package com.shravan.project.movingcars.rest;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;

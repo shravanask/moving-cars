@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.shravan.project.movingcars.model.Car;
 import com.shravan.project.movingcars.model.Car.Direction;
 import com.shravan.project.movingcars.model.ThreadId;
-import com.shravan.project.movingcars.util.JSONFormatter;
+import com.shravan.project.movingcars.util.ServerUtils;
 
 /**
  * Class to open a websocket with the server
@@ -41,8 +41,8 @@ public class CarWebSocket {
     public void onCarAdd(Session session, String carPayLoad) throws Exception {
 
         if (session.isOpen()) {
-            log.info(String.format("Payload received: %s", carPayLoad));
-            HashMap<String, String> carDetails = JSONFormatter.deserialize(carPayLoad, true,
+            log.info(String.format("Payload received: %s. address:%s", carPayLoad, session.getLocalAddress()));
+            HashMap<String, String> carDetails = ServerUtils.deserialize(carPayLoad, true,
                 new TypeReference<HashMap<String, String>>() {
                 });
             String carMapIndex = carDetails.get("carMapIndex");
@@ -59,10 +59,12 @@ public class CarWebSocket {
 
                     //add a new car
                     Car car = new Car(session, threadId, xIndex, yIndex, Direction.getValue(direction));
-                    Thread carThread = new Thread(car, String.valueOf(threadId.get()));
+                    String threadName = String.valueOf(threadId.get());
+                    Thread carThread = new Thread(car, threadName);
                     carThread.start();
-                    allCarThreads.put(String.valueOf(threadId.get()), car);
-                    log.info(String.format("Car added: %s", String.valueOf(threadId.get())));
+                    log.info(String.format("Car started in new thread. name: %s", threadName));
+                    allCarThreads.put(threadName, car);
+                    log.info(String.format("Car added: %s", threadName));
                 }
                 catch (Exception e) {
                     e.printStackTrace();
@@ -89,6 +91,23 @@ public class CarWebSocket {
     @OnWebSocketConnect
     public void onConnect(Session session) throws IOException {
 
+        //initialize the map size
+        String requestUrl = session.getUpgradeRequest().getRequestURI().toString();
+        //default the map to 5x5
+        Integer xMapSize = 5;
+        Integer yMapSize = 5;
+        try {
+            HashMap<String, String> queryParams = ServerUtils.getAllQuerParameters(requestUrl);
+            xMapSize = Integer.parseInt(queryParams.get("xMapSize"));
+            yMapSize = Integer.parseInt(queryParams.get("yMapSize"));
+        }
+        catch (Exception e) {
+            log.severe(String.format("Given map size in query string: %s is invalid. Defaulting to 5x5", requestUrl));
+        }
+        //update the map size
+        threadId.setxMapSize(xMapSize);
+        threadId.setyMapSize(yMapSize);
+
         log.info(session.getRemoteAddress().getHostString() + " connected!");
     }
 
@@ -96,5 +115,14 @@ public class CarWebSocket {
     public void onClose(Session session, int status, String reason) {
 
         log.info(session.getRemoteAddress().getHostString() + " closed!");
+        //clear all the car threads
+        for (String carId : allCarThreads.keySet()) {
+            log.info(String.format("Interupting car with id: %s", carId));
+            if (allCarThreads.get(carId) != null) {
+                allCarThreads.get(carId).interrupt();
+            }
+        }
+        //flush the current threadId
+        threadId.remove();
     }
 }

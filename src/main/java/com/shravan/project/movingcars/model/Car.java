@@ -1,11 +1,13 @@
 package com.shravan.project.movingcars.model;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.logging.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.shravan.project.movingcars.socket.CarWebSocket;
+import com.shravan.project.movingcars.util.ServerUtils;
 
 /**
  * Simple bean representing a car. This class extends the {@link Thread}, so by
@@ -17,8 +19,6 @@ import com.shravan.project.movingcars.socket.CarWebSocket;
  */
 public class Car extends Thread {
 
-    private static final Integer xMapSize = 5;
-    private static final Integer yMapSize = 5;
     private static final Logger log = Logger.getLogger(CarWebSocket.class.getSimpleName());
 
     /**
@@ -60,6 +60,8 @@ public class Car extends Thread {
         this.xIndex = xIndex;
         this.yIndex = yIndex;
         this.direction = direction != null ? direction : Direction.RIGHT;
+        //update the previous direction with the given one
+        this.previousDirection = this.direction;
         this.session = session;
     }
 
@@ -70,6 +72,10 @@ public class Car extends Thread {
     private ThreadId threadId;
     @JsonIgnore
     private Session session;
+    /**
+     * Maintain a previous direction
+     */
+    private Direction previousDirection;
 
     //getters and setters
     public Integer getxIndex() {
@@ -119,9 +125,17 @@ public class Car extends Thread {
      */
     public void run() {
 
-        try {
-            if (session != null && session.isOpen()) {
-                while (true) {
+        synchronized (String.valueOf(threadId.get()).intern()) {
+            try {
+                //send the first update as it is if there is no change in direction
+                //                if (direction.equals(previousDirection)) {
+                //                    sendToSession();
+                //                }
+                while (session != null && session.isOpen()) {
+                    //                    //send the first update as it is if there is change in direction
+                    //                    if (!direction.equals(previousDirection)) {
+                    //                        sendToSession();
+                    //                    }
                     switch (direction) {
                         case RIGHT:
                             xIndex++;
@@ -137,28 +151,29 @@ public class Car extends Thread {
                             break;
                     }
                     Thread.sleep(2000);
-                    if (xIndex == xMapSize) {
+                    if (xIndex == threadId.getxMapSize()) {
                         xIndex = 0;
                     }
-                    else if (xIndex == 0) {
-                        xIndex = xMapSize;
+                    else if (xIndex < 0) {
+                        xIndex = threadId.getxMapSize() - 1;
                     }
-                    if (yIndex == yMapSize) {
+                    if (yIndex == threadId.getyMapSize()) {
                         yIndex = 0;
                     }
-                    else if (yIndex == 0) {
-                        yIndex = yMapSize;
+                    else if (yIndex < 0) {
+                        yIndex = threadId.getyMapSize() - 1;
                     }
-                    //update the socket
+                    log.info(String.format("CarId: %s - (%s, %s) - %s", threadId.get() - 1, xIndex, yIndex, direction));
+                    //update the socket and send again
                     sendToSession();
+                    //update the previous direction to the current one
+                    previousDirection = direction;
                 }
-            }
-            else {
                 log.severe("Socket is either closed or not open");
             }
-        }
-        catch (InterruptedException ex) {
-            log.warning(String.format("Car: %s movement got interupted", threadId.get()));
+            catch (InterruptedException ex) {
+                log.warning(String.format("Car: %s movement got interupted", threadId.get() - 1));
+            }
         }
     }
 
@@ -171,7 +186,17 @@ public class Car extends Thread {
 
         synchronized (session) {
             try {
-                session.getRemote().sendString(xIndex + ":" + yIndex + "-" + direction);
+                if (session.isOpen()) {
+                    HashMap<String, Object> result = new HashMap<String, Object>();
+                    result.put("xIndex", xIndex);
+                    result.put("yIndex", yIndex);
+                    result.put("carId", threadId.get() - 1);
+                    result.put("direction", direction);
+                    session.getRemote().sendString(ServerUtils.serialize(result));
+                }
+                else {
+                    log.warning(String.format("Socket connection is not open. CarId: %s", threadId.get()));
+                }
             }
             catch (IOException e) {
                 e.printStackTrace();

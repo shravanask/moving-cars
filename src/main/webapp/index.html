@@ -1,14 +1,46 @@
 <html>
+<head>
+<style type="text/css">
+table {
+	border: 2px solid black;
+}
+td {
+	padding: 10px;
+	border: 1px solid lightgrey;
+}
+</style>
+</head>
 <body>
 	<div>
+		<!-- Used to set the default map size -->
+		<label><b>Setup:</b></label><input type="text" id="carMapSize" value="52,20"/>
 		<input type="button" id="connectBtn" value="CONNECT" onclick="connect()" /> 
+		<input type="button" id="disconnectBtn" value="STOP" onclick="closeSocket()" disabled="disabled" /> 
 	</div>
 	<div>
-		<input type="text" id="carAddIndex" value="1,1"/> 
-		<input type="button" id="sendBtn" value="ADD CAR" onclick="send()" disabled="disabled" />
+		<label><b>Car Enty:</b></label><input type="text" id="carAddIndex" value="0,0"/> 
+		<select class="input-small" id="direction" name="direction">
+			<option value="up">UP</option>
+			<option value="down">DOWN</option>
+			<option value="left">LEFT</option>
+			<option value="right">RIGHT</option>
+		</select> 
+		<input type="button" id="sendBtn" value="ADD CAR" onclick="addCar()" disabled="disabled" />
+	</div>
+	<div>
+		<label><b>Change direction:</b></label>
+		<input type="text" id="carId" value="1"/> 
+		<select class="input-small" id="carDirectionChange">
+			<option value="up">UP</option>
+			<option value="down">DOWN</option>
+			<option value="left">LEFT</option>
+			<option value="right">RIGHT</option>
+		</select> 
+		<input type="button" id="changeDirection" value="Change Direction" onclick="changeDirection()" disabled="disabled" />
 	</div>
 	<div id="output">
 		<p>Output</p>
+		<div id="tableDiv"></div>
 	</div>
 </body>
 <script type="text/javascript">
@@ -16,6 +48,41 @@
 	var output = document.getElementById("output");
 	var connectBtn = document.getElementById("connectBtn");
 	var sendBtn = document.getElementById("sendBtn");
+	var disconnectBtn = document.getElementById("disconnectBtn");
+	var mapCellKey = "carMapCell";
+
+	//create a dynamic table dipicting a map where the car is moving
+	
+	function createTable(xMapSize, yMapSize) {
+		//clear the existing div element
+		document.getElementById("tableDiv").innerHTML = "";
+		//define table elements
+		var tableElem, rowElem, colElem;
+		if (xMapSize == "" || yMapSize == "") {
+			alert("Please enter some numeric value");
+		} else {
+			//create a table
+			tableElem = document.createElement('table');
+			tableElem.setAttribute("id", "carMap");
+			for (var yIndex = yMapSize - 1; yIndex >= 0; yIndex--) {
+				//create a row in the above table
+				rowElem = document.createElement('tr');
+				rowElem.setAttribute("id", "carMapRow" + yIndex);
+
+				for (var xIndex = 0; xIndex < xMapSize; xIndex++) {
+					//create a cell/column
+					colElem = document.createElement('td');
+					colElem.setAttribute("id", mapCordinates(xIndex, yIndex));
+					//append the cell in the above created row
+					rowElem.appendChild(colElem);
+				}
+				//append the row in the above created table
+				tableElem.appendChild(rowElem);
+			}
+			//append the table in the document
+			document.getElementById("tableDiv").appendChild(tableElem);
+		}
+	}
 
 	function connect() {
 		// oprn the connection if one does not exist
@@ -24,15 +91,29 @@
 			return;
 		}
 		// Create a websocket
-		webSocket = new WebSocket("ws://localhost:8080/carSocket");
+		var carMapSizeValue = document.getElementById("carMapSize").value;
+		var socketQueryString = "?xMapSize=";
+		var xMapSize, yMapSize;
+		if (carMapSizeValue) {
+			var carMapSize = carMapSizeValue.split(",");
+			xMapSize = carMapSize[0];
+			yMapSize = carMapSize[1];
+			socketQueryString += xMapSize;
+			socketQueryString += ("&yMapSize=" + yMapSize);
+		}
+		webSocket = new WebSocket("ws://localhost:8080/carSocket"
+				+ socketQueryString);
 
 		webSocket.onopen = function(event) {
 			updateOutput("Connected!");
 			connectBtn.disabled = true;
 			sendBtn.disabled = false;
-
+			disconnectBtn.disabled = false;
+			//create the table
+			createTable(xMapSize, yMapSize);
 		};
 
+		//message is received here from the server as an event
 		webSocket.onmessage = function(event) {
 			updateOutput(event.data);
 		};
@@ -44,19 +125,57 @@
 		};
 	}
 
-	function send() {
+	function addCar() {
 		var carMapIndex = document.getElementById("carAddIndex").value;
-		var direction = "RIGHT";
-		var carPayload = {"carMapIndex" : carMapIndex, "direction" : direction};
+		var direction = document.getElementById("direction").value;
+		var carPayload = {
+			"carMapIndex" : carMapIndex,
+			"direction" : direction
+		};
+		webSocket.send(JSON.stringify(carPayload));
+		document.getElementById("changeDirection").disabled = false;
+	}
+
+	function changeDirection() {
+		var carId = document.getElementById("carId").value;
+		var direction = document.getElementById("carDirectionChange").value;
+		var carPayload = {
+			"carId" : carId,
+			"direction" : direction
+		};
 		webSocket.send(JSON.stringify(carPayload));
 	}
 
 	function closeSocket() {
 		webSocket.close();
+		disconnectBtn.disabled = true;
+	}
+	
+	//maintain the previous index of the cars
+	var previousCarCoordinates = {};
+	function updateOutput(text) {
+		//check if text is having car details
+		try {
+			var carDetails = JSON.parse(text);
+			//it should have a carId if its an update regarding the car
+			if (carDetails && carDetails.carId) {
+				var cellId = mapCordinates(carDetails.xIndex, carDetails.yIndex);
+				//clear the previous coordinates first
+				if (previousCarCoordinates[carDetails.carId]) {
+					document.getElementById(previousCarCoordinates[carDetails.carId]).innerHTML = "";
+				}
+				document.getElementById(cellId).innerHTML = carDetails.carId;
+				//update the previous coordinates next
+				previousCarCoordinates[carDetails.carId] = cellId;
+			}
+		} catch (error) {
+			output.innerHTML += "<br/>" + text;
+		}
 	}
 
-	function updateOutput(text) {
-		output.innerHTML += "<br/>" + text;
+	//Simple method to generate the table cell id based on the x,y coorinates
+	function mapCordinates(xIndex, yIndex) {
+		return mapCellKey + xIndex + ":" + yIndex;
 	}
 </script>
 </html>
