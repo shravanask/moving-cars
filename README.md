@@ -1,7 +1,7 @@
 <b>Instructions to run: </b>
 <b>Requirements: </b>
-Maven 3.x 
-<b>Commands: </b>
+Maven 3.x <br>
+<b>Commands: </b> <br>
 cd /project-path/moving-cars/ <br>
 mvn jetty:run <br>
 
