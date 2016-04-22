@@ -13,7 +13,7 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.shravan.project.movingcars.model.Car;
 import com.shravan.project.movingcars.model.Car.Direction;
-import com.shravan.project.movingcars.model.ThreadId;
+import com.shravan.project.movingcars.model.MapSize;
 import com.shravan.project.movingcars.util.ServerUtils;
 
 /**
@@ -26,10 +26,8 @@ public class CarWebSocket {
 
     private static final Logger log = Logger.getLogger(CarWebSocket.class.getSimpleName());
     private static Map<String, Car> allCarThreads;
-    private static ThreadId threadId = new ThreadId();
+    private static MapSize mapSize = new MapSize();
     private static AtomicInteger carID = new AtomicInteger(0);
-    public static ThreadLocal<Integer> xMapSize = new ThreadLocal<Integer>();
-    public static ThreadLocal<Integer> yMapSize = new ThreadLocal<Integer>();
 
     /**
      * Simple websocket implementation to add a car at a specific coordinate
@@ -63,8 +61,7 @@ public class CarWebSocket {
                     //increment the carId - initially from 0 to 1
                     carID.incrementAndGet();
                     //add a new car
-//                    Car car = new Car(session, threadId, xIndex, yIndex, Direction.getValue(direction));
-                    Car car = new Car(session, threadId, carID.get(), xIndex, yIndex, Direction.getValue(direction));
+                    Car car = new Car(session, mapSize, carID.get(), xIndex, yIndex, Direction.getValue(direction));
                     String threadName = String.valueOf(carID.get());
                     Thread carThread = new Thread(car, threadName);
                     carThread.start();
@@ -94,6 +91,11 @@ public class CarWebSocket {
         }
     }
 
+    /**
+     * This method will be connect when the web socket connection happens
+     * @param session
+     * @throws IOException
+     */
     @OnWebSocketConnect
     public void onConnect(Session session) throws IOException {
 
@@ -111,12 +113,18 @@ public class CarWebSocket {
             log.severe(String.format("Given map size in query string: %s is invalid. Defaulting to 5x5", requestUrl));
         }
         //update the map size
-        threadId.setxMapSize(xMapSize);
-        threadId.setyMapSize(yMapSize);
+        mapSize.setxMapSize(xMapSize);
+        mapSize.setyMapSize(yMapSize);
         carID = carID != null ? carID : new AtomicInteger(0);
         log.info(session.getRemoteAddress().getHostString() + " connected!");
     }
 
+    /**
+     * This method will be called if the websocket connection closes
+     * @param session
+     * @param status
+     * @param reason
+     */
     @OnWebSocketClose
     public void onClose(Session session, int status, String reason) {
 
@@ -129,7 +137,7 @@ public class CarWebSocket {
             }
         }
         //flush the current threadId
-//        threadId.remove();
+        mapSize.remove();
         carID = null;
     }
 }

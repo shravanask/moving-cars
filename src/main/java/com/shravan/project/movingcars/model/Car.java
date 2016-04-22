@@ -46,8 +46,11 @@ public class Car extends Thread {
      * @param session
      *            The webSocket session to which the position of the car is
      *            updated
-     * @param threadID
-     *            The threadid instance to uniquely identify this thread
+     * @param mapSize
+     *            The threadlocal instance to uniquely identify this the map
+     *            size for this car movement
+     * @param carId
+     *            The unique id assiged to this car
      * @param xIndex
      *            The initial x-coordinate index of the car in the map
      * @param yIndex
@@ -55,33 +58,21 @@ public class Car extends Thread {
      * @param direction
      *            If null, defaults it to {@link Direction#RIGHT}
      */
-//    public Car(Session session, ThreadId threadID, Integer xIndex, Integer yIndex, Direction direction) {
-//        this.threadId = threadID;
-//        this.xIndex = xIndex;
-//        this.yIndex = yIndex;
-//        this.direction = direction != null ? direction : Direction.RIGHT;
-//        //update the previous direction with the given one
-//        this.previousDirection = this.direction;
-//        this.session = session;
-//        this.carId = threadID.getCurrentId();
-//    }
-    
-    public Car(Session session, ThreadId threadId, Integer carId, Integer xIndex, Integer yIndex, Direction direction) {
-        this.threadId = threadId;
+    public Car(Session session, MapSize mapSize, Integer carId, Integer xIndex, Integer yIndex, Direction direction) {
+        this.mapSize = mapSize;
         this.xIndex = xIndex;
         this.yIndex = yIndex;
         this.direction = direction != null ? direction : Direction.RIGHT;
-        //update the previous direction with the given one
-        this.previousDirection = this.direction;
         this.session = session;
         this.carId = carId;
+        this.previousDirection = this.direction;
     }
 
     private Integer xIndex;
     private Integer yIndex;
     private Direction direction = Direction.RIGHT;
     @JsonIgnore
-    private ThreadId threadId;
+    private MapSize mapSize;
     //keep a reference to the threadId as it can trigger a new one in the new thread
     public Integer carId;
     @JsonIgnore
@@ -122,14 +113,14 @@ public class Car extends Thread {
         this.direction = direction;
     }
 
-    public ThreadId getThreadID() {
+    public MapSize getThreadID() {
 
-        return threadId;
+        return mapSize;
     }
 
-    public void setThreadID(ThreadId threadID) {
+    public void setThreadID(MapSize threadID) {
 
-        this.threadId = threadID;
+        this.mapSize = threadID;
     }
 
     /**
@@ -148,10 +139,6 @@ public class Car extends Thread {
                     sendToSession();
                 }
                 while (session != null && session.isOpen()) {
-                    //                    //send the first update as it is if there is change in direction
-                    //                    if (!direction.equals(previousDirection)) {
-                    //                        sendToSession();
-                    //                    }
                     switch (direction) {
                         case RIGHT:
                             xIndex++;
@@ -167,19 +154,18 @@ public class Car extends Thread {
                             break;
                     }
                     Thread.sleep(1000);
-                    if (xIndex == threadId.getxMapSize()) {
+                    if (xIndex == mapSize.getxMapSize()) {
                         xIndex = 0;
                     }
                     else if (xIndex < 0) {
-                        xIndex = threadId.getxMapSize() - 1;
+                        xIndex = mapSize.getxMapSize() - 1;
                     }
-                    if (yIndex == threadId.getyMapSize()) {
+                    if (yIndex == mapSize.getyMapSize()) {
                         yIndex = 0;
                     }
                     else if (yIndex < 0) {
-                        yIndex = threadId.getyMapSize() - 1;
+                        yIndex = mapSize.getyMapSize() - 1;
                     }
-                    log.info("run2: " + carId);
                     log.info(String.format("CarId: %s - (%s, %s) - %s", carId, xIndex, yIndex, direction));
                     //update the socket and send again
                     sendToSession();
@@ -207,7 +193,6 @@ public class Car extends Thread {
                     HashMap<String, Object> result = new HashMap<String, Object>();
                     result.put("xIndex", xIndex);
                     result.put("yIndex", yIndex);
-                    log.info("sendToSession " + carId);
                     result.put("carId", String.valueOf(carId));
                     result.put("direction", direction);
                     session.getRemote().sendString(ServerUtils.serialize(result));

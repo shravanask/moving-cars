@@ -1,18 +1,9 @@
 package com.shravan.project.movingcars.model;
 
-public class ThreadId extends ThreadLocal<Integer> {
+public class MapSize extends ThreadLocal<Integer> {
 
     private int xMapSize;
     private int yMapSize;
-
-//    // Atomic integer containing the next thread ID to be assigned
-//    private final AtomicInteger nextId = new AtomicInteger(0);
-
-//    @Override
-//    protected Integer initialValue() {
-//
-//        return nextId.getAndIncrement();
-//    }
 
     public int getxMapSize() {
 
@@ -33,9 +24,4 @@ public class ThreadId extends ThreadLocal<Integer> {
 
         this.yMapSize = yMapSize;
     }
-    
-//    public Integer getCurrentId() {
-//
-//        return nextId.get();
-//    }
 }
