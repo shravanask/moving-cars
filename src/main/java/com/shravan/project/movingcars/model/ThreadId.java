@@ -2,32 +2,17 @@ package com.shravan.project.movingcars.model;
 
 public class ThreadId extends ThreadLocal<Integer> {
 
-    private int nextId;
     private int xMapSize;
     private int yMapSize;
 
-    public ThreadId() {
-        nextId = 1;
-    }
+//    // Atomic integer containing the next thread ID to be assigned
+//    private final AtomicInteger nextId = new AtomicInteger(0);
 
-    /**
-     * Syncronized method to make sure a unique id incremented by 1 (starting
-     * from 1) is given to each instance created.
-     * 
-     * @return
-     */
-    private synchronized Integer getNewId() {
-
-        Integer id = new Integer(nextId);
-        nextId++;
-        return id;
-    }
-
-    @Override
-    protected Integer initialValue() {
-
-        return getNewId();
-    }
+//    @Override
+//    protected Integer initialValue() {
+//
+//        return nextId.getAndIncrement();
+//    }
 
     public int getxMapSize() {
 
@@ -48,9 +33,9 @@ public class ThreadId extends ThreadLocal<Integer> {
 
         this.yMapSize = yMapSize;
     }
-
-//    public int getCurrentId() {
+    
+//    public Integer getCurrentId() {
 //
-//        return nextId - 1;
+//        return nextId.get();
 //    }
 }

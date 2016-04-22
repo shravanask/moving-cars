@@ -157,14 +157,16 @@ td {
 		//check if text is having car details
 		try {
 			var carDetails = JSON.parse(text);
+			console.log("updating.. " + text + " carid" + carDetails.carId);
 			//it should have a carId if its an update regarding the car
 			if (carDetails && carDetails.carId) {
 				var cellId = mapCordinates(carDetails.xIndex, carDetails.yIndex);
+				console.log("updating cellId.. " + cellId + " carId: "+ carDetails.carId);
 				//clear the previous coordinates first
 				if (previousCarCoordinates[carDetails.carId]) {
 					document.getElementById(previousCarCoordinates[carDetails.carId]).innerHTML = "";
 				}
-				document.getElementById(cellId).innerHTML = carDetails.carId;
+				document.getElementById(cellId).innerHTML = carDetails.carId + "";
 				//update the previous coordinates next
 				previousCarCoordinates[carDetails.carId] = cellId;
 			}

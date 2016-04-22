@@ -3,6 +3,7 @@ package com.shravan.project.movingcars.socket;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
@@ -25,7 +26,10 @@ public class CarWebSocket {
 
     private static final Logger log = Logger.getLogger(CarWebSocket.class.getSimpleName());
     private static Map<String, Car> allCarThreads;
-    private ThreadId threadId = new ThreadId();
+    private static ThreadId threadId = new ThreadId();
+    private static AtomicInteger carID = new AtomicInteger(0);
+    public static ThreadLocal<Integer> xMapSize = new ThreadLocal<Integer>();
+    public static ThreadLocal<Integer> yMapSize = new ThreadLocal<Integer>();
 
     /**
      * Simple websocket implementation to add a car at a specific coordinate
@@ -56,10 +60,12 @@ public class CarWebSocket {
                 try {
                     int xIndex = Integer.parseInt(carCoordinates[0]);
                     int yIndex = Integer.parseInt(carCoordinates[1]);
-
+                    //increment the carId - initially from 0 to 1
+                    carID.incrementAndGet();
                     //add a new car
-                    Car car = new Car(session, threadId, xIndex, yIndex, Direction.getValue(direction));
-                    String threadName = String.valueOf(threadId.get());
+//                    Car car = new Car(session, threadId, xIndex, yIndex, Direction.getValue(direction));
+                    Car car = new Car(session, threadId, carID.get(), xIndex, yIndex, Direction.getValue(direction));
+                    String threadName = String.valueOf(carID.get());
                     Thread carThread = new Thread(car, threadName);
                     carThread.start();
                     log.info(String.format("Car started in new thread. name: %s", threadName));
@@ -107,7 +113,7 @@ public class CarWebSocket {
         //update the map size
         threadId.setxMapSize(xMapSize);
         threadId.setyMapSize(yMapSize);
-
+        carID = carID != null ? carID : new AtomicInteger(0);
         log.info(session.getRemoteAddress().getHostString() + " connected!");
     }
 
@@ -123,6 +129,7 @@ public class CarWebSocket {
             }
         }
         //flush the current threadId
-        threadId.remove();
+//        threadId.remove();
+        carID = null;
     }
 }
